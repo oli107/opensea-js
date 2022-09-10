@@ -181,6 +181,12 @@ export enum TokenStandardVersion {
   ERC721v3 = "3.0",
 }
 
+// Collection fees mapping recipient address to basis points
+export interface Fees {
+  openseaFees: Map<string, number>;
+  sellerFees: Map<string, number>;
+}
+
 export interface WyvernNFTAsset {
   id: string;
   address: string;
