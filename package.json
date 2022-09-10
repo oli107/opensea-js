@@ -1,5 +1,5 @@
 {
-  "name": "opensea-js",
+  "name": "bot-opensea-js",
   "version": "4.0.7",
   "description": "JavaScript SDK for the OpenSea marketplace. Let users buy or sell crypto collectibles and other cryptogoods, all on your own site!",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "docs-build": "typedoc --out docs src/index.ts",
     "eslint:check": "eslint . --max-warnings 0 --ext .js,.ts",
     "lint:check": "concurrently \"yarn check-types\" \"yarn prettier:check\" \"yarn eslint:check\"",
-    "prepare": "husky install && npm run build",
+    "prepare": "npm run build",
     "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' TS_NODE_TRANSPILE_ONLY=true nyc mocha -r ts-node/register src/__tests__/**/*.ts --timeout 15000",
     "prettier:check": "prettier --check .",
     "prettier:check:package.json": "yarn prettier-package-json --list-different",
@@ -43,8 +43,8 @@
     "lodash": "^4.17.21",
     "query-string": "^6.11.1",
     "web3": "1.7.0",
-    "wyvern-js": "git+https://github.com/ProjectOpenSea/wyvern-js.git#d283749f3d983a9c9e2e4da925441f75e170c9f0",
-    "wyvern-schemas": "git+https://github.com/ProjectOpenSea/wyvern-schemas.git#3290fc095649f5552b560bfcb1f0fa49acf13894"
+    "wyvern-js" :"git+https://github.com/ProjectOpenSea/wyvern-js.git#7823dfdf5a272ebbc6a46e66d23563a9d6cc1be2",
+    "wyvern-schemas" :"git+https://github.com/ProjectOpenSea/wyvern-schemas.git#0a8d569931ddb6faa6e96f5a60fa2f83f0a8750e"
   },
   "devDependencies": {
     "@typechain/web3-v1": "^5.0.0",
