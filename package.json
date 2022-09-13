@@ -105,5 +105,8 @@
     "**/*.{ts,tsx,js,jsx}": [
       "eslint --cache --fix"
     ]
+  },
+  "engines": {
+    "yarn": "^1.22.17"
   }
 }
