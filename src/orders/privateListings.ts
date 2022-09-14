@@ -4,9 +4,9 @@ import {
   MatchOrdersFulfillment,
   Order,
   OrderWithCounter,
-} from "seaport-js/lib/types";
-import { isCurrencyItem } from "seaport-js/lib/utils/item";
-import { generateRandomSalt } from "seaport-js/lib/utils/order";
+} from "bot-seaport-js/lib/types";
+import { isCurrencyItem } from "bot-seaport-js/lib/utils/item";
+import { generateRandomSalt } from "bot-seaport-js/lib/utils/order";
 import { BigNumber } from "ethers";
 
 export const getPrivateListingConsiderations = (

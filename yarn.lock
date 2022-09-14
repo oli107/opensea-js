@@ -1595,7 +1595,7 @@ async-eventemitter@^0.2.2:
   dependencies:
     async "^2.4.0"
 
-"async-eventemitter@github:ahultgren/async-eventemitter#fa06e39e56786ba541c180061dbf2c0a5bbf951c":
+async-eventemitter@ahultgren/async-eventemitter#fa06e39e56786ba541c180061dbf2c0a5bbf951c:
   version "0.2.3"
   resolved "https://codeload.github.com/ahultgren/async-eventemitter/tar.gz/fa06e39e56786ba541c180061dbf2c0a5bbf951c"
   dependencies:
@@ -2280,6 +2280,14 @@ body-parser@1.20.0, body-parser@^1.16.0:
     raw-body "2.5.1"
     type-is "~1.6.18"
     unpipe "1.0.0"
+
+"bot-seaport-js@git+https://github.com/oli107/seaport-js":
+  version "1.0.6"
+  resolved "git+https://github.com/oli107/seaport-js#0fcbf2277ea6bfbc26b9ebfd04135220c08d2dca"
+  dependencies:
+    "@0xsequence/multicall" "^0.39.0"
+    ethers "^5.6.7"
+    merkletreejs "^0.2.31"
 
 brace-expansion@^1.1.7:
   version "1.1.11"
@@ -7099,14 +7107,6 @@ scrypt-js@3.0.1, scrypt-js@^3.0.0, scrypt-js@^3.0.1:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/scrypt-js/-/scrypt-js-3.0.1.tgz#d314a57c2aef69d1ad98a138a21fe9eafa9ee312"
   integrity sha512-cdwTTnqPu0Hyvf5in5asVdZocVDTNRmR7XEcJuIzMjJeSHybHl7vpB66AzwTaIg6CLSbtjcxc8fqcySfnTkccA==
-
-"seaport-js@git+https://github.com/oli107/seaport-js":
-  version "1.0.6"
-  resolved "git+https://github.com/oli107/seaport-js#0fcbf2277ea6bfbc26b9ebfd04135220c08d2dca"
-  dependencies:
-    "@0xsequence/multicall" "^0.39.0"
-    ethers "^5.6.7"
-    merkletreejs "^0.2.31"
 
 secp256k1@^4.0.1:
   version "4.0.3"

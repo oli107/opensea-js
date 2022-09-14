@@ -1,10 +1,10 @@
-import { Seaport } from "seaport-js";
-import { CROSS_CHAIN_SEAPORT_ADDRESS } from "seaport-js/lib/constants";
+import { Seaport } from "bot-seaport-js";
+import { CROSS_CHAIN_SEAPORT_ADDRESS } from "bot-seaport-js/lib/constants";
 import {
   ConsiderationInputItem,
   CreateInputItem,
   OrderComponents,
-} from "seaport-js/lib/types";
+} from "bot-seaport-js/lib/types";
 import { BigNumber } from "bignumber.js";
 import { Web3JsProvider } from "ethereum-types";
 import { isValidAddress } from "ethereumjs-util";
@@ -2504,8 +2504,8 @@ export class OpenSeaSDK {
     );
 
     const computeOrderParams = () => {
-      const shouldValidate =
-        order.target === merkleValidatorByNetwork[this._networkName];
+      //@ts-ignore
+      const shouldValidate = order.target === merkleValidatorByNetwork[this._networkName];
 
       if ("asset" in order.metadata) {
         const schema = this._getSchema(order.metadata.schema);

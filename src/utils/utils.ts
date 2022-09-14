@@ -1,4 +1,4 @@
-import { ItemType } from "seaport-js/lib/constants";
+import { ItemType } from "bot-seaport-js/lib/constants";
 import BigNumber from "bignumber.js";
 import { AbiType, CallData, TxData } from "ethereum-types";
 import * as ethUtil from "ethereumjs-util";
@@ -1054,7 +1054,8 @@ export async function getNonCompliantApprovalAddress(
 
 export const merkleValidatorByNetwork = {
   [Network.Main]: MERKLE_VALIDATOR_MAINNET,
-  [Network.Rinkeby]: MERKLE_VALIDATOR_RINKEBY,
+  [Network.Rinkeby]: MERKLE_VALIDATOR_RINKEBY,  
+  //@ts-ignore
   [Network.Goerli]: MERKLE_VALIDATOR_RINKEBY,
 };
 
