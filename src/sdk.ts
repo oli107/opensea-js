@@ -595,6 +595,7 @@ export class OpenSeaSDK {
     amountInEth: number;
     accountAddress: string;
   }) {
+    //@ts-ignore
     const token = WyvernSchemas.tokens[this._networkName].canonicalWrappedEther;
 
     const amount = WyvernProtocol.toBaseUnitAmount(
@@ -634,6 +635,7 @@ export class OpenSeaSDK {
     amountInEth: number;
     accountAddress: string;
   }) {
+    //@ts-ignore
     const token = WyvernSchemas.tokens[this._networkName].canonicalWrappedEther;
 
     const amount = WyvernProtocol.toBaseUnitAmount(
@@ -1963,6 +1965,7 @@ export class OpenSeaSDK {
   > {
     onDeprecated("Use `api.getPaymentTokens` instead");
 
+    //@ts-ignore
     const tokenSettings = WyvernSchemas.tokens[this._networkName];
 
     const { tokens } = await this.api.getPaymentTokens({
@@ -2467,8 +2470,8 @@ export class OpenSeaSDK {
     proxyAddress?: string;
   }) {
     if (!tokenAddress) {
-      tokenAddress =
-        WyvernSchemas.tokens[this._networkName].canonicalWrappedEther.address;
+      //@ts-ignore
+      tokenAddress = WyvernSchemas.tokens[this._networkName].canonicalWrappedEther.address;
     }
     const addressToApprove =
       proxyAddress ||
@@ -3700,7 +3703,9 @@ export class OpenSeaSDK {
 
   private _getSchema(schemaName?: WyvernSchemaName): Schema<WyvernAsset> {
     const schemaName_ = schemaName || WyvernSchemaName.ERC721;
+    //@ts-ignore
     const schema = WyvernSchemas.schemas[this._networkName].filter(
+      //@ts-ignore
       (s) => s.name == schemaName_
     )[0];
 
