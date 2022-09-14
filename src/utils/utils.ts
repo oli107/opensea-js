@@ -1055,6 +1055,7 @@ export async function getNonCompliantApprovalAddress(
 export const merkleValidatorByNetwork = {
   [Network.Main]: MERKLE_VALIDATOR_MAINNET,
   [Network.Rinkeby]: MERKLE_VALIDATOR_RINKEBY,
+  [Network.Goerli]: MERKLE_VALIDATOR_RINKEBY,
 };
 
 /**
