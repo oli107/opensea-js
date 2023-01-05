@@ -342,6 +342,8 @@ export interface OpenSeaCollection extends OpenSeaFees {
   externalLink?: string;
   // Link to the collection's wiki, if available
   wikiLink?: string;
+  // Map of collection fees holding OpenSea and seller fees
+  fees?: Fees | null;
 }
 
 export interface OpenSeaTraitStats {

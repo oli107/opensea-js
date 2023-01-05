@@ -18,7 +18,6 @@ import { Schema } from "wyvern-schemas/dist/types";
 import { OpenSeaAPI } from "./api";
 import {
   CK_ADDRESS,
-  CK_RINKEBY_ADDRESS,
   CONDUIT_KEYS_TO_CONDUIT,
   DEFAULT_BUYER_FEE_BASIS_POINTS,
   DEFAULT_GAS_INCREASE_FACTOR,
@@ -83,6 +82,7 @@ import {
   ECSignature,
   EventData,
   EventType,
+  Fees,
   FeeMethod,
   HowToCall,
   Network,
@@ -137,6 +137,7 @@ import {
   getAssetItemType,
   BigNumberInput,
   getAddressAfterRemappingSharedStorefrontAddressToLazyMintAdapterAddress,
+  feesToBasisPoints,
 } from "./utils/utils";
 
 export class OpenSeaSDK {
@@ -209,16 +210,21 @@ export class OpenSeaSDK {
       },
     });
 
+    let networkForWyvernConfig = this._networkName;
+    if (this._networkName == Network.Goerli) {
+      networkForWyvernConfig = Network.Rinkeby;
+    }
+
     // WyvernJS config
     this._wyvernProtocol = new WyvernProtocol(provider as Web3JsProvider, {
-      network: this._networkName,
+      network: networkForWyvernConfig,
       ...apiConfig.wyvernConfig,
     });
 
     // WyvernJS config for readonly (optimization for infura calls)
     this._wyvernProtocolReadOnly = useReadOnlyProvider
       ? new WyvernProtocol(readonlyProvider as Web3JsProvider, {
-          network: this._networkName,
+          network: networkForWyvernConfig,
           ...apiConfig.wyvernConfig,
         })
       : this._wyvernProtocol;
@@ -690,19 +696,13 @@ export class OpenSeaSDK {
   }): Promise<{
     sellerFee: ConsiderationInputItem;
     openseaSellerFee: ConsiderationInputItem;
-    collectionSellerFee?: ConsiderationInputItem;
-    openseaBuyerFee?: ConsiderationInputItem;
-    collectionBuyerFee?: ConsiderationInputItem;
+    collectionSellerFees: ConsiderationInputItem[];
   }> {
     // Seller fee basis points
     const openseaSellerFeeBasisPoints = DEFAULT_SELLER_FEE_BASIS_POINTS;
-    const collectionSellerFeeBasisPoints =
-      asset.collection.devSellerFeeBasisPoints;
-
-    // Buyer fee basis points
-    const openseaBuyerFeeBasisPoints = DEFAULT_BUYER_FEE_BASIS_POINTS;
-    const collectionBuyerFeeBasisPoints =
-      asset.collection.devBuyerFeeBasisPoints;
+    const collectionSellerFeeBasisPoints = feesToBasisPoints(
+      asset.collection.fees?.sellerFees
+    );
 
     // Seller basis points
     const sellerBasisPoints =
@@ -722,33 +722,27 @@ export class OpenSeaSDK {
       };
     };
 
+    const getConsiderationItemsFromSellerFees = (
+      fees: Fees
+    ): ConsiderationInputItem[] => {
+      const sellerFees = fees.sellerFees;
+      return Array.from(sellerFees.entries()).map(
+        ([recipient, basisPoints]) => {
+          return getConsiderationItem(basisPoints, recipient);
+        }
+      );
+    };
+
     return {
       sellerFee: getConsiderationItem(sellerBasisPoints),
       openseaSellerFee: getConsiderationItem(
         openseaSellerFeeBasisPoints,
         OPENSEA_FEE_RECIPIENT
       ),
-      collectionSellerFee:
-        collectionSellerFeeBasisPoints > 0 && asset.collection.payoutAddress
-          ? getConsiderationItem(
-              collectionSellerFeeBasisPoints,
-              asset.collection.payoutAddress
-            )
-          : undefined,
-      openseaBuyerFee:
-        openseaBuyerFeeBasisPoints > 0
-          ? getConsiderationItem(
-              openseaBuyerFeeBasisPoints,
-              OPENSEA_FEE_RECIPIENT
-            )
-          : undefined,
-      collectionBuyerFee:
-        collectionBuyerFeeBasisPoints > 0 && asset.collection.payoutAddress
-          ? getConsiderationItem(
-              collectionBuyerFeeBasisPoints,
-              asset.collection.payoutAddress
-            )
-          : undefined,
+      collectionSellerFees:
+        collectionSellerFeeBasisPoints > 0 && asset.collection.fees
+          ? getConsiderationItemsFromSellerFees(asset.collection.fees)
+          : [],
     };
   }
 
@@ -775,6 +769,8 @@ export class OpenSeaSDK {
    * @param options.accountAddress Address of the maker's wallet
    * @param options.startAmount Value of the offer, in units of the payment token (or wrapped ETH if no payment token address specified)
    * @param options.quantity The number of assets to bid for (if fungible or semi-fungible). Defaults to 1. In units, not base units, e.g. not wei
+   * @param options.domain An optional domain to be hashed and included in the first four bytes of the random salt.
+   * @param options.salt Arbitrary salt. If not passed in, a random salt will be generated with the first four bytes being the domain hash or empty.
    * @param options.expirationTime Expiration time for the order, in seconds
    * @param options.paymentTokenAddress Optional address for using an ERC-20 token in the order. If unspecified, defaults to WETH
    */
@@ -783,6 +779,8 @@ export class OpenSeaSDK {
     accountAddress,
     startAmount,
     quantity = 1,
+    domain,
+    salt,
     expirationTime,
     paymentTokenAddress,
   }: {
@@ -790,6 +788,8 @@ export class OpenSeaSDK {
     accountAddress: string;
     startAmount: BigNumberInput;
     quantity?: BigNumberInput;
+    domain?: string;
+    salt?: string;
     expirationTime?: BigNumberInput;
     paymentTokenAddress?: string;
   }): Promise<OrderV2> {
@@ -812,15 +812,13 @@ export class OpenSeaSDK {
       makeBigNumber(startAmount)
     );
 
-    const { openseaSellerFee, collectionSellerFee } = await this.getFees({
-      openseaAsset,
-      paymentTokenAddress,
-      startAmount: basePrice,
-    });
-    const considerationFeeItems = [
-      openseaSellerFee,
-      collectionSellerFee,
-    ].filter((item): item is ConsiderationInputItem => item !== undefined);
+    const { openseaSellerFee, collectionSellerFees: collectionSellerFees } =
+      await this.getFees({
+        openseaAsset,
+        paymentTokenAddress,
+        startAmount: basePrice,
+      });
+    const considerationFeeItems = [openseaSellerFee, ...collectionSellerFees];
 
     const { executeAllActions } = await this.seaport.createOrder(
       {
@@ -835,6 +833,8 @@ export class OpenSeaSDK {
           expirationTime?.toString() ??
           getMaxOrderExpirationTimestamp().toString(),
         zone: DEFAULT_ZONE_BY_NETWORK[this._networkName],
+        domain,
+        salt,
         restrictedByZone: true,
         allowPartialFills: true,
       },
@@ -853,6 +853,8 @@ export class OpenSeaSDK {
    * @param options.startAmount Price of the asset at the start of the auction. Units are in the amount of a token above the token's decimal places (integer part). For example, for ether, expected units are in ETH, not wei.
    * @param options.endAmount Optional price of the asset at the end of its expiration time. Units are in the amount of a token above the token's decimal places (integer part). For example, for ether, expected units are in ETH, not wei.
    * @param options.quantity The number of assets to sell (if fungible or semi-fungible). Defaults to 1. In units, not base units, e.g. not wei.
+   * @param options.domain An optional domain to be hashed and included in the first four bytes of the random salt.
+   * @param options.salt Arbitrary salt. If not passed in, a random salt will be generated with the first four bytes being the domain hash or empty.
    * @param options.listingTime Optional time when the order will become fulfillable, in UTC seconds. Undefined means it will start now.
    * @param options.expirationTime Expiration time for the order, in UTC seconds.
    * @param options.paymentTokenAddress Address of the ERC-20 token to accept in return. If undefined or null, uses Ether.
@@ -864,6 +866,8 @@ export class OpenSeaSDK {
     startAmount,
     endAmount,
     quantity = 1,
+    domain,
+    salt,
     listingTime,
     expirationTime,
     paymentTokenAddress = NULL_ADDRESS,
@@ -874,6 +878,8 @@ export class OpenSeaSDK {
     startAmount: BigNumberInput;
     endAmount?: BigNumberInput;
     quantity?: BigNumberInput;
+    domain?: string;
+    salt?: string;
     listingTime?: string;
     expirationTime?: BigNumberInput;
     paymentTokenAddress?: string;
@@ -897,18 +903,21 @@ export class OpenSeaSDK {
       endAmount !== undefined ? makeBigNumber(endAmount) : undefined
     );
 
-    const { sellerFee, openseaSellerFee, collectionSellerFee } =
-      await this.getFees({
-        openseaAsset,
-        paymentTokenAddress,
-        startAmount: basePrice,
-        endAmount: endPrice,
-      });
+    const {
+      sellerFee,
+      openseaSellerFee,
+      collectionSellerFees: collectionSellerFees,
+    } = await this.getFees({
+      openseaAsset,
+      paymentTokenAddress,
+      startAmount: basePrice,
+      endAmount: endPrice,
+    });
     const considerationFeeItems = [
       sellerFee,
       openseaSellerFee,
-      collectionSellerFee,
-    ].filter((item): item is ConsiderationInputItem => item !== undefined);
+      ...collectionSellerFees,
+    ];
 
     if (buyerAddress) {
       considerationFeeItems.push(
@@ -925,6 +934,8 @@ export class OpenSeaSDK {
           expirationTime?.toString() ??
           getMaxOrderExpirationTimestamp().toString(),
         zone: DEFAULT_ZONE_BY_NETWORK[this._networkName],
+        domain,
+        salt,
         restrictedByZone: true,
         allowPartialFills: true,
       },
@@ -938,9 +949,11 @@ export class OpenSeaSDK {
   private async fulfillPrivateOrder({
     order,
     accountAddress,
+    domain,
   }: {
     order: OrderV2;
     accountAddress: string;
+    domain?: string;
   }): Promise<string> {
     let transactionHash: string;
     switch (order.protocolAddress) {
@@ -963,6 +976,7 @@ export class OpenSeaSDK {
               value: counterOrder.parameters.offer[0].startAmount,
             },
             accountAddress,
+            domain,
           })
           .transact();
         const transactionReceipt = await transaction.wait();
@@ -1011,6 +1025,7 @@ export class OpenSeaSDK {
       return this.fulfillPrivateOrder({
         order,
         accountAddress,
+        domain,
       });
     }
 
@@ -1090,12 +1105,14 @@ export class OpenSeaSDK {
   private async cancelSeaportOrders({
     orders,
     accountAddress,
+    domain,
   }: {
     orders: OrderComponents[];
     accountAddress: string;
+    domain?: string;
   }): Promise<string> {
     const transaction = await this.seaport
-      .cancelOrders(orders, accountAddress)
+      .cancelOrders(orders, accountAddress, domain)
       .transact();
     return transaction.hash;
   }
@@ -1105,13 +1122,16 @@ export class OpenSeaSDK {
    * @param param0 __namedParameters Object
    * @param order The order to cancel
    * @param accountAddress The order maker's wallet address
+   * @param domain An optional domain to be hashed and included at the end of fulfillment calldata
    */
   public async cancelOrder({
     order,
     accountAddress,
+    domain,
   }: {
     order: OrderV2;
     accountAddress: string;
+    domain?: string;
   }) {
     this._dispatch(EventType.CancelOrder, { orderV2: order, accountAddress });
 
@@ -1122,6 +1142,7 @@ export class OpenSeaSDK {
         transactionHash = await this.cancelSeaportOrders({
           orders: [order.protocolData.parameters],
           accountAddress,
+          domain,
         });
         break;
       }
@@ -1578,6 +1599,47 @@ export class OpenSeaSDK {
   }
 
   /**
+   * Register a domain on the Domain Registry contract.
+   * @param domain The string domain to be hashed and registered on the Registry.
+   * @returns Transaction hash
+   */
+  public async setDomain(domain: string): Promise<string> {
+    const transaction = await this.seaport.setDomain(domain).transact();
+
+    await transaction.wait();
+
+    return transaction.hash;
+  }
+
+  /**
+   * Get the domain for a specific tag at a given index.
+   * @param tag The tag to look up.
+   * @param index The index of the domain to return.
+   * @returns Domain
+   */
+  public async getDomain(tag: string, index: number): Promise<string> {
+    return this.seaport.getDomain(tag, index);
+  }
+
+  /**
+   * Get the full array of domains for a specific tag.
+   * @param tag The tag to look up.
+   * @returns Array of domains
+   */
+  public async getDomains(tag: string): Promise<string[]> {
+    return this.seaport.getDomains(tag);
+  }
+
+  /**
+   * Get the number of registered domains for a specific tag.
+   * @param tag The tag to look up.
+   * @returns Number of registered domains for input tag.
+   */
+  public async getNumberOfDomains(tag: string): Promise<BigNumber> {
+    return new BigNumber(this.seaport.getNumberOfDomains(tag).toString());
+  }
+
+  /**
    * Gets the current price for the order.
    */
   public async getCurrentPrice({
@@ -1814,9 +1876,7 @@ export class OpenSeaSDK {
       asset.decimals || 0
     );
     const wyAsset = getWyvernAsset(schema, asset, quantityBN);
-    const isCryptoKitties = [CK_ADDRESS, CK_RINKEBY_ADDRESS].includes(
-      wyAsset.address
-    );
+    const isCryptoKitties = [CK_ADDRESS].includes(wyAsset.address);
     // Since CK is common, infer isOldNFT from it in case user
     // didn't pass in `version`
     const isOldNFT =
@@ -2121,11 +2181,11 @@ export class OpenSeaSDK {
     let maxTotalBountyBPS = DEFAULT_MAX_BOUNTY;
 
     if (asset) {
+      const fees = asset.collection.fees;
       openseaBuyerFeeBasisPoints = +asset.collection.openseaBuyerFeeBasisPoints;
-      openseaSellerFeeBasisPoints =
-        +asset.collection.openseaSellerFeeBasisPoints;
+      openseaSellerFeeBasisPoints = +feesToBasisPoints(fees?.openseaFees);
       devBuyerFeeBasisPoints = +asset.collection.devBuyerFeeBasisPoints;
-      devSellerFeeBasisPoints = +asset.collection.devSellerFeeBasisPoints;
+      devSellerFeeBasisPoints = +feesToBasisPoints(fees?.sellerFees);
 
       maxTotalBountyBPS = openseaSellerFeeBasisPoints;
     }
@@ -2790,9 +2850,10 @@ export class OpenSeaSDK {
    * Instead of signing an off-chain order, you can approve an order
    * with on on-chain transaction using this method
    * @param order Order to approve
+   * @param domain An optional domain to be hashed and included at the end of fulfillment calldata
    * @returns Transaction hash of the approval transaction
    */
-  public async approveOrder(order: OrderV2) {
+  public async approveOrder(order: OrderV2, domain?: string) {
     this._dispatch(EventType.ApproveOrder, {
       orderV2: order,
       accountAddress: order.maker.address,
@@ -2802,7 +2863,7 @@ export class OpenSeaSDK {
     switch (order.protocolAddress) {
       case CROSS_CHAIN_SEAPORT_ADDRESS: {
         const transaction = await this.seaport
-          .validate([order.protocolData], order.maker.address)
+          .validate([order.protocolData], order.maker.address, domain)
           .transact();
         transactionHash = transaction.hash;
         break;
