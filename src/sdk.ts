@@ -769,7 +769,6 @@ export class OpenSeaSDK {
    * @param options.accountAddress Address of the maker's wallet
    * @param options.startAmount Value of the offer, in units of the payment token (or wrapped ETH if no payment token address specified)
    * @param options.quantity The number of assets to bid for (if fungible or semi-fungible). Defaults to 1. In units, not base units, e.g. not wei
-   * @param options.domain An optional domain to be hashed and included in the first four bytes of the random salt.
    * @param options.salt Arbitrary salt. If not passed in, a random salt will be generated with the first four bytes being the domain hash or empty.
    * @param options.expirationTime Expiration time for the order, in seconds
    * @param options.paymentTokenAddress Optional address for using an ERC-20 token in the order. If unspecified, defaults to WETH
@@ -779,7 +778,6 @@ export class OpenSeaSDK {
     accountAddress,
     startAmount,
     quantity = 1,
-    domain,
     salt,
     expirationTime,
     paymentTokenAddress,
@@ -833,7 +831,6 @@ export class OpenSeaSDK {
           expirationTime?.toString() ??
           getMaxOrderExpirationTimestamp().toString(),
         zone: DEFAULT_ZONE_BY_NETWORK[this._networkName],
-        domain,
         salt,
         restrictedByZone: true,
         allowPartialFills: true,
@@ -853,7 +850,6 @@ export class OpenSeaSDK {
    * @param options.startAmount Price of the asset at the start of the auction. Units are in the amount of a token above the token's decimal places (integer part). For example, for ether, expected units are in ETH, not wei.
    * @param options.endAmount Optional price of the asset at the end of its expiration time. Units are in the amount of a token above the token's decimal places (integer part). For example, for ether, expected units are in ETH, not wei.
    * @param options.quantity The number of assets to sell (if fungible or semi-fungible). Defaults to 1. In units, not base units, e.g. not wei.
-   * @param options.domain An optional domain to be hashed and included in the first four bytes of the random salt.
    * @param options.salt Arbitrary salt. If not passed in, a random salt will be generated with the first four bytes being the domain hash or empty.
    * @param options.listingTime Optional time when the order will become fulfillable, in UTC seconds. Undefined means it will start now.
    * @param options.expirationTime Expiration time for the order, in UTC seconds.
@@ -866,7 +862,6 @@ export class OpenSeaSDK {
     startAmount,
     endAmount,
     quantity = 1,
-    domain,
     salt,
     listingTime,
     expirationTime,
@@ -934,7 +929,6 @@ export class OpenSeaSDK {
           expirationTime?.toString() ??
           getMaxOrderExpirationTimestamp().toString(),
         zone: DEFAULT_ZONE_BY_NETWORK[this._networkName],
-        domain,
         salt,
         restrictedByZone: true,
         allowPartialFills: true,
@@ -949,7 +943,6 @@ export class OpenSeaSDK {
   private async fulfillPrivateOrder({
     order,
     accountAddress,
-    domain,
   }: {
     order: OrderV2;
     accountAddress: string;
@@ -976,7 +969,6 @@ export class OpenSeaSDK {
               value: counterOrder.parameters.offer[0].startAmount,
             },
             accountAddress,
-            domain,
           })
           .transact();
         const transactionReceipt = await transaction.wait();
@@ -1025,7 +1017,6 @@ export class OpenSeaSDK {
       return this.fulfillPrivateOrder({
         order,
         accountAddress,
-        domain,
       });
     }
 
@@ -1105,14 +1096,13 @@ export class OpenSeaSDK {
   private async cancelSeaportOrders({
     orders,
     accountAddress,
-    domain,
   }: {
     orders: OrderComponents[];
     accountAddress: string;
     domain?: string;
   }): Promise<string> {
     const transaction = await this.seaport
-      .cancelOrders(orders, accountAddress, domain)
+      .cancelOrders(orders, accountAddress)
       .transact();
     return transaction.hash;
   }
@@ -1596,47 +1586,6 @@ export class OpenSeaSDK {
       }
     );
     return txHash;
-  }
-
-  /**
-   * Register a domain on the Domain Registry contract.
-   * @param domain The string domain to be hashed and registered on the Registry.
-   * @returns Transaction hash
-   */
-  public async setDomain(domain: string): Promise<string> {
-    const transaction = await this.seaport.setDomain(domain).transact();
-
-    await transaction.wait();
-
-    return transaction.hash;
-  }
-
-  /**
-   * Get the domain for a specific tag at a given index.
-   * @param tag The tag to look up.
-   * @param index The index of the domain to return.
-   * @returns Domain
-   */
-  public async getDomain(tag: string, index: number): Promise<string> {
-    return this.seaport.getDomain(tag, index);
-  }
-
-  /**
-   * Get the full array of domains for a specific tag.
-   * @param tag The tag to look up.
-   * @returns Array of domains
-   */
-  public async getDomains(tag: string): Promise<string[]> {
-    return this.seaport.getDomains(tag);
-  }
-
-  /**
-   * Get the number of registered domains for a specific tag.
-   * @param tag The tag to look up.
-   * @returns Number of registered domains for input tag.
-   */
-  public async getNumberOfDomains(tag: string): Promise<BigNumber> {
-    return new BigNumber(this.seaport.getNumberOfDomains(tag).toString());
   }
 
   /**
@@ -2853,7 +2802,7 @@ export class OpenSeaSDK {
    * @param domain An optional domain to be hashed and included at the end of fulfillment calldata
    * @returns Transaction hash of the approval transaction
    */
-  public async approveOrder(order: OrderV2, domain?: string) {
+  public async approveOrder(order: OrderV2) {
     this._dispatch(EventType.ApproveOrder, {
       orderV2: order,
       accountAddress: order.maker.address,
@@ -2863,7 +2812,7 @@ export class OpenSeaSDK {
     switch (order.protocolAddress) {
       case CROSS_CHAIN_SEAPORT_ADDRESS: {
         const transaction = await this.seaport
-          .validate([order.protocolData], order.maker.address, domain)
+          .validate([order.protocolData], order.maker.address)
           .transact();
         transactionHash = transaction.hash;
         break;

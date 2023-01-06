@@ -6,6 +6,7 @@ const userSchema: JSONSchemaType<OpenSeaUser> = {
   properties: {
     username: { type: "string", nullable: true },
   },
+  required: [],
 };
 
 export const accountSchema: JSONSchemaType<OpenSeaAccount> = {
